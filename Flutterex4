@@ -1,0 +1,241 @@
+import 'package:flutter/material.dart';
+import '../data/mock_data.dart';
+import 'schedule_screen.dart';
+import '../models/transport_model.dart';
+class HomeScreen extends StatefulWidget {
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+class _HomeScreenState extends State<HomeScreen> {
+  String selectedType = 'All';
+  // Controllers for form input
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _routeController = TextEditingController();
+  String _selectedTransportType = 'Bus';
+  @override
+  Widget build(BuildContext context) {
+    List<String> types = ['All', 'Bus', 'Metro'];
+
+    // Filter list based on dropdown selection
+    var filteredList = selectedType == 'All'
+        ? transports
+        : transports.where((t) => t.type == selectedType).toList();
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Local Transport Scheduler"),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          // Dropdown filter
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: DropdownButtonFormField<String>(
+              value: selectedType,
+              decoration: InputDecoration(
+                labelText: 'Select Transport Type',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              items: types.map((type) {
+                return DropdownMenuItem(
+                  value: type,
+                  child: Text(type),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  selectedType = value!;
+                });
+              },
+            ),
+          ),
+          // Dynamic ListView
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.all(16),
+              itemCount: filteredList.length,
+              itemBuilder: (context, index) {
+                final transport = filteredList[index];
+                return GestureDetector(
+                  onTap: () {
+                    // Navigate to Schedule screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ScheduleScreen(transport: transport),
+                      ),
+                    );
+                    // Show SnackBar
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Selected: ${transport.name}"),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  onLongPress: () {
+                    // Show Dialog
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text("Transport Selected"),
+                        content: Text(
+                            "You long-pressed on ${transport.name} (${transport.type})"),
+                        actions: [
+                          TextButton(
+                            child: Text("OK"),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  child: Container(
+                    margin: EdgeInsets.only(bottom: 16),
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          blurRadius: 6,
+                          spreadRadius: 2,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Colors.indigo.shade100,
+                          child: Icon(
+                            transport.type == 'Bus'
+                                ? Icons.directions_bus
+                                : Icons.train,
+                            color: Colors.indigo,
+                            size: 28,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                transport.name,
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                "Route: ${transport.route}",
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_ios,
+                            size: 18, color: Colors.grey),
+                      ], ),),); },  ),  ),  ], ),
+      // Floating Button to Add New Transport
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _showAddTransportDialog(context);
+        },
+        child: Icon(Icons.add),
+        backgroundColor: Colors.indigo,
+      ),
+    );
+  }
+  // Function to show a form dialog
+  void _showAddTransportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Add Transport"),
+        content: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Transport Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Enter transport name';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 12),
+                TextFormField(
+                  controller: _routeController,
+                  decoration: InputDecoration(
+                    labelText: 'Route',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Enter route';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _selectedTransportType,
+                  decoration: InputDecoration(
+                    labelText: 'Transport Type',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Bus', 'Metro'].map((type) {
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Text(type),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedTransportType = value!;
+                    });
+                  },
+                ),
+              ], ), ), ),
+        actions: [
+          TextButton(
+            child: Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: Text("Add"),
+            onPressed: () {
+              if (_formKey.currentState!.validate()) {
+                setState(() {
+                  transports.add(
+                    Transport(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      name: _nameController.text,
+                      route: _routeController.text,
+                      type: _selectedTransportType,
+                      schedule: ['08:00 AM', '12:00 PM'], // default times
+                    ),
+                  );
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Transport Added Successfully")),
+                );
+                _nameController.clear();
+                _routeController.clear();
+              }}, ),],), ); }}
