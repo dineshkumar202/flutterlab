@@ -1,0 +1,241 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const TransportSchedulerApp());
+}
+class TransportSchedulerApp extends StatelessWidget {
+  const TransportSchedulerApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Local Transport Scheduler',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ),
+      debugShowCheckedModeBanner: false,
+      home: const TransportSchedulerScreen(),
+    );
+  }
+}
+class TransportSchedulerScreen extends StatefulWidget {
+  const TransportSchedulerScreen({super.key});
+
+  @override
+  State<TransportSchedulerScreen> createState() =>
+      _TransportSchedulerScreenState();
+}
+class _TransportSchedulerScreenState extends State<TransportSchedulerScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _routeController = TextEditingController();
+  final _vehicleController = TextEditingController();
+  final _departureController = TextEditingController();
+  final _arrivalController = TextEditingController();
+  final _durationController = TextEditingController();
+  String status = "";
+  // Firestore reference
+  final CollectionReference transport =
+      FirebaseFirestore.instance.collection('transport_schedules');
+  // Function to add a schedule
+  Future<void> addSchedule() async {
+    if (_formKey.currentState != null && _formKey.currentState!.validate()) {
+      await transport.add({
+        'route': _routeController.text,
+        'vehicle': _vehicleController.text,
+        'departure': _departureController.text,
+        'arrival': _arrivalController.text,
+        'duration': double.parse(_durationController.text),
+        'created_at': DateTime.now().toString(),
+      });
+      setState(() {
+        status = "✅ Transport schedule added successfully!";
+      });
+      _routeController.clear();
+      _vehicleController.clear();
+      _departureController.clear();
+      _arrivalController.clear();
+      _durationController.clear();
+    }
+  }
+  // Function to calculate average duration
+  double calculateAverageDuration(List<QueryDocumentSnapshot> docs) {
+    if (docs.isEmpty) return 0;
+    double total = 0;
+    for (var doc in docs) {
+      total += (doc['duration'] as num);
+    }
+    return total / docs.length;
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Local Transport Scheduler'),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Input Form
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const Text(
+                    "Add New Route",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 15),
+                  TextFormField(
+                    controller: _routeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Route Name (e.g. City A → City B)',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Enter route' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _vehicleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Vehicle Type (e.g. Bus, Train)',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Enter vehicle type' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _departureController,
+                    decoration: const InputDecoration(
+                      labelText: 'Departure Time (e.g. 08:30 AM)',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Enter departure time' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _arrivalController,
+                    decoration: const InputDecoration(
+                      labelText: 'Arrival Time (e.g. 10:00 AM)',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Enter arrival time' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _durationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Duration (in hours)',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Enter duration' : null,
+                  ),
+                  const SizedBox(height: 15),
+                  ElevatedButton.icon(
+                    onPressed: addSchedule,
+                    icon: const Icon(Icons.add_road),
+                    label: const Text('Add Schedule'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    status,
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Display Transport List
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    transport.orderBy('created_at', descending: true).snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final docs = snapshot.data!.docs;
+                  if (docs.isEmpty) {
+                    return const Center(child: Text('No schedules found'));
+                  }
+                  double avgDuration = calculateAverageDuration(docs);
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: docs.length,
+                          itemBuilder: (context, index) {
+                            final schedule = docs[index];
+                            final route = schedule['route'];
+                            final vehicle = schedule['vehicle'];
+                            final departure = schedule['departure'];
+                            final arrival = schedule['arrival'];
+                            final duration = schedule['duration'];
+
+                            return Card(
+                              elevation: 3,
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              child: ListTile(
+                                leading: const Icon(Icons.directions_bus,
+                                    color: Colors.teal, size: 30),
+                                title: Text(
+                                  route,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18),
+                                ),
+                                subtitle: Text(
+                                  'Vehicle: $vehicle\n'
+                                  'Departure: $departure\n'
+                                  'Arrival: $arrival\n'
+                                  'Duration: ${duration.toString()} hrs',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      // Average Duration Footer
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        color: Colors.teal.shade50,
+                        child: Text(
+                          'Average Duration: ${avgDuration.toStringAsFixed(1)} hours',
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
