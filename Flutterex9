@@ -1,0 +1,218 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(const TransportApp());
+}
+class TransportApp extends StatelessWidget {
+  const TransportApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Local Transport Scheduler',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
+        useMaterial3: true,
+      ),
+      debugShowCheckedModeBanner: false,
+      home: const TransportUpdateScreen(),
+    );
+  }
+}
+class TransportUpdateScreen extends StatefulWidget {
+  const TransportUpdateScreen({super.key});
+  @override
+  State<TransportUpdateScreen> createState() => _TransportUpdateScreenState();
+}
+class _TransportUpdateScreenState extends State<TransportUpdateScreen> {
+  final TextEditingController _routeController = TextEditingController();
+  final TextEditingController _driverController = TextEditingController();
+  final TextEditingController _timeController = TextEditingController();
+  String? _currentRouteId;
+  bool _recordFound = false;
+  Map<String, dynamic>? _currentRoute;
+  // 🔍 Search route by route name
+  Future<void> _searchRoute() async {
+    String route = _routeController.text.trim();
+    if (route.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a Route Name')),
+      );
+      return;
+    }
+    try {
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('transport_routes')
+          .where('route_name', isEqualTo: route)
+          .get();
+      if (querySnapshot.docs.isNotEmpty) {
+        var record = querySnapshot.docs.first;
+        setState(() {
+          _currentRouteId = record.id;
+          _currentRoute = record.data() as Map<String, dynamic>;
+          _driverController.text = _currentRoute!['driver_name'] ?? '';
+          _timeController.text = _currentRoute!['departure_time'] ?? '';
+          _recordFound = true;
+        });
+      } else {
+        setState(() {
+          _recordFound = false;
+          _currentRouteId = null;
+          _currentRoute = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Route not found')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  }
+  // ✏️ Update route details
+  Future<void> _updateRoute() async {
+    if (!_recordFound || _currentRouteId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please search for a route first')),
+      );
+      return;
+    }
+    try {
+      String newDriver = _driverController.text.trim();
+      String newTime = _timeController.text.trim();
+      await FirebaseFirestore.instance
+          .collection('transport_routes')
+          .doc(_currentRouteId)
+          .update({
+        'driver_name': newDriver,
+        'departure_time': newTime,
+      });
+      setState(() {
+        _currentRoute = {
+          'route_name': _routeController.text,
+          'driver_name': newDriver,
+          'departure_time': newTime,
+        };
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Route updated successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating route: ${e.toString()}')),
+      );
+    }
+  }
+  @override
+  void dispose() {
+    _routeController.dispose();
+    _driverController.dispose();
+    _timeController.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Local Transport Scheduler'),
+        backgroundColor: Colors.blueGrey,
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              "Search and Update Route Details",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _routeController,
+              decoration: const InputDecoration(
+                labelText: 'Route Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: _searchRoute,
+              icon: const Icon(Icons.search),
+              label: const Text('Search Route'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            if (_recordFound) ...[
+              const SizedBox(height: 24),
+              TextField(
+                controller: _driverController,
+                decoration: const InputDecoration(
+                  labelText: 'Driver Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _timeController,
+                decoration: const InputDecoration(
+                  labelText: 'Departure Time (e.g. 8:30 AM)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _updateRoute,
+                icon: const Icon(Icons.update),
+                label: const Text('Update Route'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+            if (_currentRoute != null) ...[
+              const SizedBox(height: 32),
+              const Divider(),
+              const Text(
+                'Current Route Information',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('🚌 Route: ${_currentRoute!['route_name']}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Text('👨‍✈️ Driver: ${_currentRoute!['driver_name']}'),
+                      const SizedBox(height: 8),
+                      Text('⏰ Departure: ${_currentRoute!['departure_time']}'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
