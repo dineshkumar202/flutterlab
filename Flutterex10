@@ -1,0 +1,146 @@
+import 'package:flutter/material.dart';
+void main() {
+  runApp(const TransportSchedulerApp());
+}
+class TransportSchedulerApp extends StatelessWidget {
+  const TransportSchedulerApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Local Transport Scheduler',
+      theme: ThemeData(
+        primarySwatch: Colors.indigo,
+        useMaterial3: true,
+      ),
+      home: const TransportSchedulerScreen(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+class TransportSchedulerScreen extends StatefulWidget {
+  const TransportSchedulerScreen({super.key});
+  @override
+  State<TransportSchedulerScreen> createState() =>
+      _TransportSchedulerScreenState();
+}
+class _TransportSchedulerScreenState extends State<TransportSchedulerScreen> {
+  final TextEditingController _routeNameController = TextEditingController();
+  final TextEditingController _departureController = TextEditingController();
+  final TextEditingController _destinationController = TextEditingController();
+  List<Map<String, String>> _schedules = [];
+  void _addSchedule() {
+    String route = _routeNameController.text.trim();
+    String departure = _departureController.text.trim();
+    String destination = _destinationController.text.trim();
+    if (route.isEmpty || departure.isEmpty || destination.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+    setState(() {
+      _schedules.add({
+        'route': route,
+        'departure': departure,
+        'destination': destination,
+      });
+      _routeNameController.clear();
+      _departureController.clear();
+      _destinationController.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Transport schedule added successfully!')),
+    );
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Local Transport Scheduler'),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              "Add New Transport Schedule",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _routeNameController,
+              decoration: const InputDecoration(
+                labelText: 'Route Name / Number',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _departureController,
+              decoration: const InputDecoration(
+                labelText: 'Departure Time (e.g., 07:30 AM)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _destinationController,
+              decoration: const InputDecoration(
+                labelText: 'Destination',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _addSchedule,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Schedule'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 32),
+            if (_schedules.isNotEmpty) ...[
+              const Divider(),
+              const Text(
+                'Scheduled Transports',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Column(
+                children: _schedules.map((schedule) {
+                  return Card(
+                    color: Colors.indigo.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: ListTile(
+                      leading: const Icon(Icons.directions_bus,
+                          color: Colors.indigo),
+                      title: Text(
+                        schedule['route']!,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        "Departure: ${schedule['departure']}\nDestination: ${schedule['destination']}",
+                      ),
+                      trailing:
+                          const Icon(Icons.schedule, color: Colors.indigo),
+                    ),
+                  );
+                }).toList(),   ), ],  ],   ),    ), ); }
+  @override
+  void dispose() {
+    _routeNameController.dispose();
+    _departureController.dispose();
+    _destinationController.dispose();
+    super.dispose();
+   }}
