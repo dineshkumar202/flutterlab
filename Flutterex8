@@ -1,0 +1,220 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const TransportSchedulerApp());
+}
+class TransportSchedulerApp extends StatelessWidget {
+  const TransportSchedulerApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Local Transport Scheduler (Firestore + Search)',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ),
+      home: const TransportSearchScreen(),
+    );
+  }
+}
+class TransportSearchScreen extends StatefulWidget {
+  const TransportSearchScreen({super.key});
+  @override
+  State<TransportSearchScreen> createState() => _TransportSearchScreenState();
+}
+class _TransportSearchScreenState extends State<TransportSearchScreen> {
+  final _busNumberController = TextEditingController();
+  final _routeController = TextEditingController();
+  final _timeController = TextEditingController();
+  final _driverController = TextEditingController();
+  String status = '';
+  String errorMessage = '';
+  Map<String, dynamic>? searchResult;
+  // Firestore reference
+  final CollectionReference buses =
+      FirebaseFirestore.instance.collection('buses');
+  // Function to save bus schedule to Firestore
+  Future<void> saveBusSchedule() async {
+    if (_busNumberController.text.isEmpty ||
+        _routeController.text.isEmpty ||
+        _timeController.text.isEmpty ||
+        _driverController.text.isEmpty) {
+      setState(() {
+        status = "⚠ Please fill in all fields!";
+      });
+      return;
+    }
+    await buses.add({
+      'bus_number': _busNumberController.text,
+      'route': _routeController.text,
+      'time': _timeController.text,
+      'driver': _driverController.text,
+      'created_at': DateTime.now().toString(),
+    });
+    setState(() {
+      status = "✅ Bus schedule added successfully!";
+    });
+    _busNumberController.clear();
+    _routeController.clear();
+    _timeController.clear();
+    _driverController.clear();
+  }
+  // Function to search bus schedule by bus number
+  Future<void> searchBus() async {
+    setState(() {
+      searchResult = null;
+      errorMessage = '';
+    });
+    if (_busNumberController.text.isEmpty) {
+      setState(() {
+        errorMessage = '⚠ Please enter a Bus Number to search.';
+      });
+      return;
+    }
+    final snapshot = await buses
+        .where('bus_number', isEqualTo: _busNumberController.text)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) {
+      setState(() {
+        errorMessage = '❌ No bus found with that number.';
+      });
+    } else {
+      setState(() {
+        searchResult = snapshot.docs.first.data() as Map<String, dynamic>;
+      });
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Local Transport Scheduler'),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const Text(
+                "Add or Search Bus Schedule",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 15),
+              // Bus Number
+              TextField(
+                controller: _busNumberController,
+                decoration: const InputDecoration(
+                  labelText: 'Bus Number',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Route
+              TextField(
+                controller: _routeController,
+                decoration: const InputDecoration(
+                  labelText: 'Route (e.g. Main City - Airport)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Time
+              TextField(
+                controller: _timeController,
+                decoration: const InputDecoration(
+                  labelText: 'Time (e.g. 7:30 AM)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Driver
+              TextField(
+                controller: _driverController,
+                decoration: const InputDecoration(
+                  labelText: 'Driver Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: saveBusSchedule,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Schedule'),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        foregroundColor: Colors.white),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: searchBus,
+                    icon: const Icon(Icons.search),
+                    label: const Text('Search Bus'),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              // Status messages
+              Text(
+                status,
+                style: const TextStyle(
+                    color: Colors.green, fontWeight: FontWeight.bold),
+              ),
+              if (errorMessage.isNotEmpty)
+                Text(
+                  errorMessage,
+                  style: const TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold),
+                ),
+              // Search Result
+              if (searchResult != null) ...[
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "🚌 Bus Number: ${searchResult!['bus_number']}",
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        Text("📍 Route: ${searchResult!['route']}"),
+                        Text("🕒 Time: ${searchResult!['time']}"),
+                        Text("👨‍✈️ Driver: ${searchResult!['driver']}"),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Added on: ${searchResult!['created_at']}",
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
