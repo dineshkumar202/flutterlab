@@ -1,0 +1,54 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'screens/home_screen.dart';
+void main() {
+  runApp(LocalTransportApp());
+}
+class LocalTransportApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Local Transport Scheduler',
+      theme: ThemeData(
+        primarySwatch: Colors.indigo,
+        textTheme: GoogleFonts.poppinsTextTheme(),
+        scaffoldBackgroundColor: Color(0xFFF6F8FA),
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      home: HomeScreen(),
+    );
+  }
+}
+           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  onEditingComplete: onEditingComplete,
+                  decoration: InputDecoration(
+                    labelText: 'Enter City',
+                    border: OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.search),
+                      onPressed: () {
+                        _selectedCity = controller.text;
+                        _getWeather();
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+SizedBox(height: 24),
+            if (_weatherData != null)
+              WeatherWidget(weatherData: _weatherData!),
+            if (_error != null)
+              Text(_error!, style: TextStyle(color: Colors.red, fontSize: 16)),
+          ],
+        ),
+      ),
+    );
+  }
+}
